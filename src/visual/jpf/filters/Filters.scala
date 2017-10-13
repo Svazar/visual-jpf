@@ -4,18 +4,25 @@ import visual.jpf.parsing.TraceLine
 
 
 trait Filter {
+  def name : String
   def ignoreLine(t: TraceLine) : Boolean
+
+  override def toString: String = "Filter(" + name + ")"
 }
 
 object Filters {
 
-  val ignoreBrackets = new Filter {
+  def ignoreContentStartsWith(nameStr : String, prefix: String) = new Filter {
+    override def name: String = nameStr
+
     override def ignoreLine(t: TraceLine): Boolean =
-      t.content.trim == "}" || t.content.trim == "{"
+      t.content.startsWith(prefix)
   }
 
-  def ignoreClass(name : String) = new Filter {
+  def ignoreClassStartsWith(nameStr : String, prefix: String) = new Filter {
+    override def name: String = nameStr
+
     override def ignoreLine(t: TraceLine): Boolean =
-      t.className.startsWith(name)
+      t.className.startsWith(prefix)
   }
 }

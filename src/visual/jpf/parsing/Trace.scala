@@ -18,6 +18,7 @@ class Trace(private val lines: Map[Int, TraceLine]) {
   }
 
   def linesOfThread(tid: Int): Trace = this.withFilters(new Filter {
+    override def name: String = ???
     override def ignoreLine(t: TraceLine): Boolean = t.tid != tid
   })
 

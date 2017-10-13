@@ -1,4 +1,4 @@
-import visual.jpf.filters.Filters
+import visual.jpf.filters.{Filter, Filters}
 import visual.jpf.parsing.{Parser, Trace, TraceLine}
 
 import scala.collection.mutable
@@ -7,19 +7,20 @@ import scalafx.Includes._
 import scalafx.application.JFXApp
 import scalafx.application.JFXApp.PrimaryStage
 import scalafx.beans.property.{ReadOnlyStringWrapper, StringProperty}
-import scalafx.event.ActionEvent
+import scalafx.collections.ObservableBuffer
 import scalafx.geometry.{Insets, Pos}
 import scalafx.scene.Scene
 import scalafx.scene.control._
 import scalafx.scene.control.cell.TextFieldTreeTableCell
 import scalafx.scene.input.{MouseButton, MouseEvent}
 import scalafx.scene.layout.{BorderPane, HBox, VBox}
+import scalafx.scene.text.Font
 
 class ControlColumn extends TreeTableColumn[TraceLine, String]("View") {
   sortable = false
   editable = false
   minWidth = 50
-  cellValueFactory = { p => ReadOnlyStringWrapper("-") }
+  cellValueFactory = { p => ReadOnlyStringWrapper("") }
 }
 
 class IdColumn extends TreeTableColumn[TraceLine, String]("ID") {
@@ -29,16 +30,18 @@ class IdColumn extends TreeTableColumn[TraceLine, String]("ID") {
   cellValueFactory = { p => ReadOnlyStringWrapper(p.value.value.value.id.toString) }
 }
 
-class ThreadColumn(val tid: Int) extends TreeTableColumn[TraceLine, String]("Thread " + tid) {
+class ThreadColumn(val tid: Int, val preferredWidth: Double) extends TreeTableColumn[TraceLine, String]("Thread " + tid) {
   sortable = false
   editable = false
   minWidth = 100
+  prefWidth = preferredWidth
   cellValueFactory = { p => ReadOnlyStringWrapper(if (tid == p.value.value.value.tid) p.value.value.value.content else "") }
 
   // Click an header must collapse/restore thread columns.
   // To implement this, we remove the default header text, create a new VBox with a Label,
   // and set it as custom grpahic
   var storedWidth: Option[Double] = None
+
   private def toggle(): Unit = {
     storedWidth match {
       case Some(w) =>
@@ -54,6 +57,7 @@ class ThreadColumn(val tid: Int) extends TreeTableColumn[TraceLine, String]("Thr
         label.text = "" + tid
     }
   }
+
   val label = new Label("Thread " + tid)
   val header = new VBox {
     alignment = Pos.Center
@@ -70,8 +74,23 @@ class NotesColumn(val notes: mutable.Map[Int, StringProperty]) extends TreeTable
   sortable = false
   editable = true
   minWidth = 200
-  cellValueFactory = { p => notes.getOrElse(p.value.value.value.id, new StringProperty("") {onChange((_, _, _) => notes += p.value.value.value.id -> this )}) }
-  cellFactory = { c => new TextFieldTreeTableCell[TraceLine, String](scalafx.scene.control.TextFormatter.IdentityStringConverter) { editable = true } }
+  cellValueFactory = { p =>
+    notes.getOrElse(p.value.value.value.id, new StringProperty("") {
+      onChange((a, b, c) => notes += p.value.value.value.id -> this)
+    })
+  }
+
+  cellValueFactory = { p =>
+    notes.getOrElse(p.value.value.value.id, new StringProperty("") {
+      onChange((_, _, _) => notes += p.value.value.value.id -> this)
+    })
+  }
+
+  cellFactory = { c =>
+    new TextFieldTreeTableCell[TraceLine, String](scalafx.scene.control.TextFormatter.IdentityStringConverter) {
+      editable = true
+    }
+  }
 }
 
 object ParseHelper {
@@ -100,20 +119,87 @@ object ParseHelper {
   }
 }
 
+object GUIParameters {
+  val SCENE_WIDTH = 1024
+  val SCENE_HEIGHT = 768
+  val BOTTOM_SIZE = 15
+}
+
+case class AvailableFilters(list: Seq[Filter]) {
+  def merge(other: AvailableFilters): AvailableFilters = AvailableFilters(this.list ++ other.list)
+}
+
+object AvailableFilters {
+
+  def apply(path: String): AvailableFilters = new AvailableFilters(parseFilters(path))
+
+  val empty = new AvailableFilters(Seq.empty)
+  val default = new AvailableFilters(Seq(Filters.ignoreContentStartsWith("Ignore closed bracket", "}")))
+
+  private def parseFilters(path: String) = {
+    val currentBlock = mutable.ArrayBuffer[String]()
+    val filters = mutable.ArrayBuffer[Filter]()
+
+    def processBlock() = if (currentBlock.nonEmpty) {
+      val name = currentBlock(0).split("=")(1).trim
+      val typeName = currentBlock(1).split("=")(1).trim
+      val parametersRaw = currentBlock(2).split("=")(1).trim
+      currentBlock.remove(0, currentBlock.size)
+      assert(currentBlock.isEmpty)
+
+      typeName match {
+        case "FilterClassStartsWith" =>
+          val newFilters = parametersRaw.replace("[", "").replace("]", "").split(",").map(
+            p => Filters.ignoreClassStartsWith(name, p.replace("\"", ""))
+          )
+          filters ++= newFilters
+
+        case "FilterContentStartsWith" =>
+          val newFilters = parametersRaw.replace("[", "").replace("]", "").split(",").map(
+            p => Filters.ignoreContentStartsWith(name, p.replace("\"", ""))
+          )
+
+          filters ++= newFilters
+      }
+    }
+
+    for (rawLine <- Source.fromFile(path).getLines if rawLine.nonEmpty) {
+      val line = rawLine.trim
+      if (line.startsWith("Name")) {
+        processBlock()
+      }
+      currentBlock += line
+    }
+
+    processBlock()
+
+    filters
+  }
+}
+
 object Main extends JFXApp {
-  if (parameters.raw.length != 1) {
-    println("Usage: tool <filepath>")
+
+  var availableFilters = AvailableFilters.default
+
+  if (parameters.raw.length == 2) {
+    // <filepath> <filters_path>
+    availableFilters = availableFilters.merge(AvailableFilters(parameters.raw(1)))
+  } else if (parameters.raw.length != 1) {
+    // filters_path -- empty
+    println("Usage: tool <filepath> <filters_path>")
+    println("       tool <filepath>")
     System.exit(-1)
   }
 
-  val filters = Seq(Filters.ignoreBrackets)
-
   val trace = ParseHelper.parseJPFTrace(parameters.raw.head)
-  val filteredTrace = trace.withFilters(filters: _*)
-  val traceLines = filteredTrace.sortedLines
+  val numberOfThreads = trace.sortedLines.map(_.tid).toSet.size
+  var filteredTrace = trace.withFilters(availableFilters.list: _*)
 
-  def numberOfThreads(trace: Traversable[TraceLine]): Int =
-    trace.map(_.tid).max + 1
+  val rootnode: TreeItem[TraceLine] = new TreeItem(TraceLine(0, -1, "", "")) {
+    expanded = true
+  }
+
+  updateView(availableFilters.list: _*)
 
   def group(trace: Traversable[TraceLine]): Seq[Seq[TraceLine]] = {
     if (trace.isEmpty) Seq()
@@ -123,9 +209,10 @@ object Main extends JFXApp {
     }
   }
 
-  val rootnode: TreeItem[TraceLine] = new TreeItem(TraceLine(0, -1, "", "")) {
-    expanded = true
-    children = group(traceLines).map(g => {
+  def updateView(filters: Filter*): Unit = {
+    filteredTrace = trace.withFilters(filters: _*)
+    rootnode.expanded = true
+    rootnode.children = group(filteredTrace.sortedLines).map(g => {
       val n = new TreeItem(g.head) {
         if (g.tail.nonEmpty) {
           children = g.tail.map(new TreeItem(_))
@@ -138,89 +225,95 @@ object Main extends JFXApp {
 
   val notes: mutable.Map[Int, StringProperty] = mutable.Map()
 
-  val txt = new TextArea()
+  val txt = new TextArea() {
+    minWidth = GUIParameters.SCENE_WIDTH * 0.7
+    font = Font.font("Consolas", 12)
+  }
+
+  val obs = ObservableBuffer(availableFilters.list.map(_.name))
+  val appliedFiltersView = new ListView[String]() {
+    selectionModel.value.setSelectionMode(SelectionMode.Multiple)
+    items = obs
+  }
+
+  appliedFiltersView.selectionModel.value.selectAll()
+
+  new MultipleSelectionModel(appliedFiltersView.selectionModel()) {
+    selectedItems.onChange((selected, _) => {
+      updateView(availableFilters.list.filter { f =>
+        selected.contains(f.name)
+      }: _*)
+    })
+  }
 
   stage = new PrimaryStage {
     title = "Visual JPF"
-    scene = new Scene(1024, 768) {
+    scene = new Scene(GUIParameters.SCENE_WIDTH, GUIParameters.SCENE_HEIGHT) {
       root = new BorderPane {
         val table =
           new TreeTableView[TraceLine](rootnode) {
             editable = true
             columns += new ControlColumn
             columns += new IdColumn
-            (0 until numberOfThreads(traceLines)).foreach { columns += new ThreadColumn(_) }
+            (0 until numberOfThreads).foreach {
+              columns += new ThreadColumn(_, GUIParameters.SCENE_WIDTH / (numberOfThreads + 1))
+            }
             columns += new NotesColumn(notes)
           }
 
         new TableSelectionModel(table.selectionModel()) {
-          selectedItem.onChange((_,_, newValue) => {
-            val tid = newValue.value.value.tid
-            println(tid)
-            val specific = filteredTrace.linesOfThread(tid)
+          selectedItem.onChange((_, _, newValue) => {
+            if (newValue != null && newValue.getValue != null) {
+              val currentSelectedLine = newValue.value.value
+              val threadSpecificTrace = filteredTrace.linesOfThread(currentSelectedLine.tid)
 
+              // TODO refactor this hell
+              var plus = true
+              var anchorId = 0
+              var text = ""
+
+              val maxClassLength = (threadSpecificTrace.sortedLines.map(_.className.length) ++ Seq(0)).max
+
+              def wrapSelected(l: TraceLine) = wrap(l, "-->", "<--")
+
+              def wrapNonSelected(l: TraceLine) = wrap(l, "   ", "   ")
+
+              def wrap(l: TraceLine, prefix: String, postfix: String) = {
+                prefix + l.className.padTo(maxClassLength + 1, ' ').mkString("") + ": " + l.content + postfix + "\n"
+              }
+
+              for (l <- threadSpecificTrace.sortedLines) {
+                if (l == currentSelectedLine) {
+                  plus = false
+                }
+
+                val addition = if (l == currentSelectedLine) wrapSelected(l) else wrapNonSelected(l)
+                text = text + addition
+
+                if (plus) {
+                  anchorId += addition.length
+                }
+              }
+
+              txt.setText(text)
+              txt.selectRange(anchorId, anchorId + wrapSelected(currentSelectedLine).length)
+            }
           })
         }
 
-/*
-        table.selectionModel().getSelectedCells.addListener(new ListChangeListener[control.TreeTablePosition[TraceLine, _]] {
-          override def onChanged(chgs: ListChangeListener.Change[_ <: control.TreeTablePosition[TraceLine, _]]): Unit = {
-            while (chgs.next()) {
-              // TODO: refactor this hell
-              if (chgs.wasAdded) {
-                val lineId = chgs.getAddedSubList.get(0)
-                val line = lineId.getTreeItem.getValue
-
-                val specific = filteredTrace.linesOfThread(line.tid)
-
-                var plus = true
-                var anchorId = 0
-                var text = ""
-
-                for (l <- specific.sortedLines) {
-                  text = text + l.content + "\n"
-
-                  if (l == line) {
-                    plus = false
-                  }
-
-                  if (plus) {
-                    anchorId += (l.content + "\n").length
-                  }
-                }
-
-                txt.setText(text)
-                txt.selectRange(anchorId, anchorId + line.content.length)
-              }
-            }
-          }
-        })
-*/
         center = table
 
         bottom =
           new HBox {
-            padding = Insets(15)
+            padding = Insets(GUIParameters.BOTTOM_SIZE)
 
             children.add(txt)
-
-            (0 until numberOfThreads(traceLines)).foreach { t =>
-              val btn = new Button("Thread-" + t) {
-                onAction = (event: ActionEvent) => {
-                  txt.setText(trace
-                    .linesOfThread(t)
-                    .sortedLines
-                    .map(_.content) mkString "\n")
-                }
-              }
-
-              children.add(btn)
-            }
-
+            children.add(appliedFiltersView)
           }
       }
     }
   }
+
   override def stopApp(): Unit = {
     notes foreach println
   }
