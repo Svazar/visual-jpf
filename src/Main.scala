@@ -1,5 +1,5 @@
+import visual.jpf.filters.Filters
 import visual.jpf.parsing.{Trace, TraceLine}
-
 import visual.jpf.parsing.{Parser, Trace}
 
 import scala.io.Source
@@ -55,7 +55,6 @@ object ParseHelper {
 
     Trace.empty
   }
-
 }
 
 object Main extends JFXApp {
@@ -64,7 +63,11 @@ object Main extends JFXApp {
     System.exit(-1)
   }
 
-  val trace = ParseHelper.parseJPFTrace(parameters.raw.head).sortedLines
+  val filters = Seq(Filters.ignoreBrackets)
+
+  val trace = ParseHelper.parseJPFTrace(parameters.raw.head)
+    .withFilters(filters)
+    .sortedLines
 
   def numberOfThreads(trace: Traversable[TraceLine]): Int =
     trace.map(_.tid).max + 1

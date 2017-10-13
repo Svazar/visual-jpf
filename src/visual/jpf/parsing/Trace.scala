@@ -1,10 +1,12 @@
 package visual.jpf.parsing
 
+import visual.jpf.filters.Filter
+
 case class TraceLine(id: Int, tid: Int, className: String, content: String)
 
 class Trace(private val lines: Map[Int, TraceLine]) {
 
-  def sortedLines() : Traversable[TraceLine] = lines.toList.sortWith( (a, b) => a._1 < b._1).map( _._2)
+  def sortedLines : Traversable[TraceLine] = lines.toList.sortWith( (a, b) => a._1 < b._1).map( _._2)
 
   def line(id: Int): Option[TraceLine] = lines.get(id)
 
@@ -12,6 +14,12 @@ class Trace(private val lines: Map[Int, TraceLine]) {
     case (k: Int, v: TraceLine) => v.tid == tid
   }.values
 
+
+  def withFilters(seq: Seq[Filter]) = Trace(
+    lines.filterNot {
+      case (_, line) => seq.exists(_.ignoreLine(line))
+    }
+  )
 
   override def toString: String = sortedLines mkString "\n"
 }
