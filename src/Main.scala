@@ -1,5 +1,8 @@
 import visual.jpf.parsing.{Trace, TraceLine}
 
+import visual.jpf.parsing.{Parser, Trace}
+
+import scala.io.Source
 import scala.reflect.io.File
 import scalafx.application.JFXApp
 import scalafx.application.JFXApp.PrimaryStage
@@ -28,9 +31,40 @@ class ThreadColumn(val tid: Int) extends TreeTableColumn[TraceLine, String]("Thr
   cellValueFactory = { p => ReadOnlyStringWrapper(if (tid == p.value.value.value.tid) p.value.value.value.content else "")}
 }
 
+object ParseHelper {
+
+  val tracePrefix = "====================================================== trace"
+  val outputPrefix = "====================================================== output"
+
+  def parseJPFTrace(path: String): Trace = {
+    val buffer = collection.mutable.ArrayBuffer[String]()
+    var buffering = false
+
+    for (line <- Source.fromFile(path).getLines) {
+      if (line.startsWith(tracePrefix)) {
+        buffering = true
+      } else if (buffering) {
+        if (line.startsWith(outputPrefix)) {
+          buffering = false
+          return Parser.parseTrace(buffer)
+        } else {
+          buffer += line
+        }
+      }
+    }
+
+    Trace.empty
+  }
+
+}
+
 object Main extends JFXApp {
-  val trace = CLIMain.parseJPFTrace(new java.io.File(".").getCanonicalPath +
-    "/examples/Philosophers/DiningPhilosophers.analysis").sortedLines()
+  if (parameters.raw.length != 1) {
+    println("Usage: tool <filepath>")
+    System.exit(-1)
+  }
+
+  val trace = ParseHelper.parseJPFTrace(parameters.raw.head).sortedLines
 
   def numberOfThreads(trace: Traversable[TraceLine]): Int =
     trace.map(_.tid).max + 1
