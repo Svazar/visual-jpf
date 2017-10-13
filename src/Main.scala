@@ -1,14 +1,16 @@
 import visual.jpf.filters.Filters
 import visual.jpf.parsing.{Parser, Trace, TraceLine}
 
+import scala.collection.mutable
 import scala.io.Source
 import scalafx.application.JFXApp
 import scalafx.application.JFXApp.PrimaryStage
-import scalafx.beans.property.ReadOnlyStringWrapper
+import scalafx.beans.property.{ReadOnlyStringWrapper, StringProperty}
 import scalafx.geometry.Insets
 import scalafx.scene.Scene
 import scalafx.scene.control._
-import scalafx.scene.layout.{BorderPane, HBox, VBox}
+import scalafx.scene.control.cell.TextFieldTreeTableCell
+import scalafx.scene.layout.{BorderPane, HBox}
 
 class ControlColumn extends TreeTableColumn[TraceLine, String]("View") {
   sortable = false
@@ -30,6 +32,16 @@ class ThreadColumn(val tid: Int) extends TreeTableColumn[TraceLine, String]("Thr
   minWidth = 100
   cellValueFactory = { p => ReadOnlyStringWrapper(if (tid == p.value.value.value.tid) p.value.value.value.content else "")}
 }
+
+class NotesColumn extends TreeTableColumn[TraceLine, String]("Notes") {
+  val notes: mutable.Map[Int, StringProperty] = mutable.Map()
+  sortable = false
+  editable = true
+  minWidth = 200
+  cellValueFactory = { p => notes.getOrElse(p.value.value.value.id, new StringProperty("foo") {onChange((a,b,c) => notes += p.value.value.value.id -> this )}) }
+  cellFactory = (c: TreeTableColumn[TraceLine, String]) => new TextFieldTreeTableCell[TraceLine, String](scalafx.scene.control.TextFormatter.IdentityStringConverter) { editable = true }
+}
+
 
 object ParseHelper {
 
@@ -99,9 +111,11 @@ object Main extends JFXApp {
       root = new BorderPane {
         center =
           new TreeTableView[TraceLine](rootnode) {
+            editable = true
             columns += new ControlColumn
             columns += new IdColumn
             (0 until numberOfThreads(trace)).foreach { columns += new ThreadColumn(_) }
+            columns += new NotesColumn
           }
         bottom =
           new HBox {
