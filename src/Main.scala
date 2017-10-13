@@ -1,3 +1,5 @@
+import javafx.collections.ListChangeListener
+
 import visual.jpf.filters.Filters
 import visual.jpf.parsing.{Parser, Trace, TraceLine}
 
@@ -6,6 +8,11 @@ import scala.io.Source
 import scalafx.application.JFXApp
 import scalafx.application.JFXApp.PrimaryStage
 import scalafx.beans.property.{ReadOnlyStringWrapper, StringProperty}
+import scalafx.beans.property.ReadOnlyStringWrapper
+import javafx.event.EventHandler
+import javafx.event.ActionEvent
+import javafx.scene.control
+
 import scalafx.geometry.Insets
 import scalafx.scene.Scene
 import scalafx.scene.control._
@@ -16,21 +23,21 @@ class ControlColumn extends TreeTableColumn[TraceLine, String]("View") {
   sortable = false
   editable = false
   minWidth = 50
-  cellValueFactory = { p => ReadOnlyStringWrapper("-")}
+  cellValueFactory = { p => ReadOnlyStringWrapper("-") }
 }
 
 class IdColumn extends TreeTableColumn[TraceLine, String]("ID") {
   sortable = false
   editable = false
   minWidth = 50
-  cellValueFactory = { p => ReadOnlyStringWrapper(p.value.value.value.id.toString)}
+  cellValueFactory = { p => ReadOnlyStringWrapper(p.value.value.value.id.toString) }
 }
 
 class ThreadColumn(val tid: Int) extends TreeTableColumn[TraceLine, String]("Thread " + tid) {
   sortable = false
   editable = false
   minWidth = 100
-  cellValueFactory = { p => ReadOnlyStringWrapper(if (tid == p.value.value.value.tid) p.value.value.value.content else "")}
+  cellValueFactory = { p => ReadOnlyStringWrapper(if (tid == p.value.value.value.tid) p.value.value.value.content else "") }
 }
 
 class NotesColumn extends TreeTableColumn[TraceLine, String]("Notes") {
@@ -78,8 +85,8 @@ object Main extends JFXApp {
   val filters = Seq(Filters.ignoreBrackets)
 
   val trace = ParseHelper.parseJPFTrace(parameters.raw.head)
-    .withFilters(filters)
-    .sortedLines
+  val filteredTrace = trace.withFilters(filters: _*)
+  val traceLines = filteredTrace.sortedLines
 
   def numberOfThreads(trace: Traversable[TraceLine]): Int =
     trace.map(_.tid).max + 1
@@ -94,7 +101,7 @@ object Main extends JFXApp {
 
   val rootnode: TreeItem[TraceLine] = new TreeItem(TraceLine(0, -1, "", "")) {
     expanded = true
-    children = group(trace).map(g => {
+    children = group(traceLines).map(g => {
       val n = new TreeItem(g.head) {
         if (g.tail.nonEmpty) {
           children = g.tail.map(new TreeItem(_))
@@ -105,22 +112,78 @@ object Main extends JFXApp {
     })
   }
 
+  val txt = new TextArea()
+
   stage = new PrimaryStage {
     title = "Visual JPF"
     scene = new Scene(1024, 768) {
       root = new BorderPane {
-        center =
+        val table =
           new TreeTableView[TraceLine](rootnode) {
             editable = true
             columns += new ControlColumn
             columns += new IdColumn
-            (0 until numberOfThreads(trace)).foreach { columns += new ThreadColumn(_) }
+            (0 until numberOfThreads(traceLines)).foreach { columns += new ThreadColumn(_) }
             columns += new NotesColumn
           }
+
+        table.selectionModel().getSelectedCells.addListener(new ListChangeListener[control.TreeTablePosition[TraceLine, _]] {
+          override def onChanged(chgs: ListChangeListener.Change[_ <: control.TreeTablePosition[TraceLine, _]]): Unit = {
+            while (chgs.next()) {
+              // TODO: refactor this hell
+              if (chgs.wasAdded) {
+                val lineId = chgs.getAddedSubList.get(0)
+                val line = lineId.getTreeItem.getValue
+
+                val specific = filteredTrace.linesOfThread(line.tid)
+
+                var plus = true
+                var anchorId = 0
+                var text = ""
+
+                for (l <- specific.sortedLines) {
+                  text = text + l.content + "\n"
+
+                  if (l == line) {
+                    plus = false
+                  }
+
+                  if (plus) {
+                    anchorId += (l.content + "\n").length
+                  }
+                }
+
+                txt.setText(text)
+                txt.selectRange(anchorId, anchorId + line.content.length)
+              }
+            }
+          }
+        })
+
+        center = table
+
         bottom =
           new HBox {
-            padding = Insets(10)
-            children = Seq(new Label("Foo"), new Button("Bar"))
+            padding = Insets(15)
+
+            children.add(txt)
+
+            (0 until numberOfThreads(traceLines)).foreach { t =>
+              val btn = new Button("Thread-" + t)
+
+              btn.onAction = new EventHandler[ActionEvent] {
+                override def handle(event: ActionEvent) {
+                  txt.setText(trace
+                    .linesOfThread(t)
+                    .sortedLines
+                    .map(_.content) mkString "\n")
+
+                }
+              }
+
+              children.add(btn)
+            }
+
           }
       }
     }

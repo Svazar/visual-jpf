@@ -10,12 +10,19 @@ class Trace(private val lines: Map[Int, TraceLine]) {
 
   def line(id: Int): Option[TraceLine] = lines.get(id)
 
-  def linesOfThread(tid: Int): Traversable[TraceLine] = lines.filter {
-    case (k: Int, v: TraceLine) => v.tid == tid
-  }.values
+  def id(line: TraceLine): Int = {
+    for ((id, sline) <- lines if line == sline) {
+      return id
+    }
+    -1
+  }
+
+  def linesOfThread(tid: Int): Trace = this.withFilters(new Filter {
+    override def ignoreLine(t: TraceLine): Boolean = t.tid != tid
+  })
 
 
-  def withFilters(seq: Seq[Filter]) = Trace(
+  def withFilters(seq: Filter*) = Trace(
     lines.filterNot {
       case (_, line) => seq.exists(_.ignoreLine(line))
     }
