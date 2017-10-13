@@ -1,8 +1,5 @@
-import javafx.collections.ListChangeListener
-
 import visual.jpf.filters.Filters
 import visual.jpf.parsing.{Parser, Trace, TraceLine}
-
 
 import scala.collection.mutable
 import scala.io.Source
@@ -10,14 +7,13 @@ import scalafx.Includes._
 import scalafx.application.JFXApp
 import scalafx.application.JFXApp.PrimaryStage
 import scalafx.beans.property.{ReadOnlyStringWrapper, StringProperty}
-import scalafx.beans.property.ReadOnlyStringWrapper
-
 import scalafx.event.ActionEvent
-import scalafx.geometry.Insets
+import scalafx.geometry.{Insets, Pos}
 import scalafx.scene.Scene
 import scalafx.scene.control._
 import scalafx.scene.control.cell.TextFieldTreeTableCell
-import scalafx.scene.layout.{BorderPane, HBox}
+import scalafx.scene.input.{MouseButton, MouseEvent}
+import scalafx.scene.layout.{BorderPane, HBox, VBox}
 
 class ControlColumn extends TreeTableColumn[TraceLine, String]("View") {
   sortable = false
@@ -38,10 +34,36 @@ class ThreadColumn(val tid: Int) extends TreeTableColumn[TraceLine, String]("Thr
   editable = false
   minWidth = 100
   cellValueFactory = { p => ReadOnlyStringWrapper(if (tid == p.value.value.value.tid) p.value.value.value.content else "") }
-  contextMenu =
-    new ContextMenu(
-//      new MenuItem("Collapse") { onAction = {ae: ActionEvent => {println(ae)} } },
-      new MenuItem("Expand"))
+
+  // Click an header must collapse/restore thread columns.
+  // To implement this, we remove the default header text, create a new VBox with a Label,
+  // and set it as custom grpahic
+  var storedWidth: Option[Double] = None
+  private def toggle(): Unit = {
+    storedWidth match {
+      case Some(w) =>
+        storedWidth = None
+        maxWidth = Double.MaxValue
+        minWidth = w
+        minWidth = 100
+        label.text = "Thread " + tid
+      case None =>
+        storedWidth = Some(width.value)
+        minWidth = 30
+        maxWidth = 30
+        label.text = "" + tid
+    }
+  }
+  val label = new Label("Thread " + tid)
+  val header = new VBox {
+    alignment = Pos.Center
+    children += label
+    onMouseClicked = (me: MouseEvent) => {
+      if (me.button == MouseButton.Primary) toggle
+    }
+  }
+  text = ""
+  graphic = header
 }
 
 class NotesColumn(val notes: mutable.Map[Int, StringProperty]) extends TreeTableColumn[TraceLine, String]("Notes") {
@@ -51,7 +73,6 @@ class NotesColumn(val notes: mutable.Map[Int, StringProperty]) extends TreeTable
   cellValueFactory = { p => notes.getOrElse(p.value.value.value.id, new StringProperty("") {onChange((_, _, _) => notes += p.value.value.value.id -> this )}) }
   cellFactory = { c => new TextFieldTreeTableCell[TraceLine, String](scalafx.scene.control.TextFormatter.IdentityStringConverter) { editable = true } }
 }
-
 
 object ParseHelper {
 
