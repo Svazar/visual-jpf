@@ -10,9 +10,6 @@ object Parser {
         l.isEmpty
   }
 
-  // python style naming ;)
-  def strip(l : String) = l.trim
-
   def parseTrace(lines: Traversable[String]) : Trace = {
 
     val map = collection.mutable.Map[Int, TraceLine]()
@@ -23,13 +20,13 @@ object Parser {
     for (line <- lines if !isNotUsefulLine(line) && prevLine != line) {
       if (line.startsWith(transitionLinePrefix)) {
         val rawInt = line.stripPrefix(transitionLinePrefix).split(":")(1)
-        currentTid = Integer.parseInt(strip(rawInt))
+        currentTid = Integer.parseInt(rawInt.trim)
       } else {
         assert (!map.contains(currentInstrNumber))
 
         line.split("  :").toList match {
           case className :: content :: Nil =>
-            map.put(currentInstrNumber, TraceLine(currentInstrNumber, currentTid, strip(className), strip(content)))
+            map.put(currentInstrNumber, TraceLine(currentInstrNumber, currentTid, className.trim, content.trim))
           case _ => assert (false)
         }
 

@@ -4,6 +4,8 @@ case class TraceLine(id: Int, tid: Int, className: String, content: String)
 
 class Trace(private val lines: Map[Int, TraceLine]) {
 
+  def sortedLines() : Traversable[TraceLine] = lines.toList.sortWith( (a, b) => a._1 < b._1).map( _._2)
+
   def line(id: Int): Option[TraceLine] = lines.get(id)
 
   def linesOfThread(tid: Int): Traversable[TraceLine] = lines.filter {
@@ -11,7 +13,7 @@ class Trace(private val lines: Map[Int, TraceLine]) {
   }.values
 
 
-  override def toString: String = lines.toList.sortWith( (a, b) => a._1 < b._1) mkString "\n"
+  override def toString: String = sortedLines mkString "\n"
 }
 
 object Trace {

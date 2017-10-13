@@ -1,3 +1,4 @@
+import scala.reflect.io.File
 import scalafx.application.JFXApp
 import scalafx.application.JFXApp.PrimaryStage
 import scalafx.beans.property.{ObjectProperty, ReadOnlyStringWrapper, StringProperty}
@@ -21,12 +22,9 @@ class ThreadColumn(val n: Int) extends TreeTableColumn[ThreadData, String]("Thre
 }
 
 object Main extends JFXApp {
-
-  val data = Seq(
-    new ThreadData(0, "t0-0"),
-    new ThreadData(0, "t0-1"),
-    new ThreadData(1, "t1-0")
-  )
+  val data = CLIMain.example(
+    new java.io.File(".").getCanonicalPath +
+    "/examples/Philosophers/DiningPhilosophers.analysis")
 
   def group(data: Seq[ThreadData]): Seq[Seq[ThreadData]] = {
     if (data.isEmpty) Seq()

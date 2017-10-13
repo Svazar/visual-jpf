@@ -23,6 +23,17 @@ object CLIMain {
 
     Trace.empty
   }
+  
+  def example(path: String) : Seq[ThreadData] = {
+
+    val result = collection.mutable.ArrayBuffer[ThreadData]()
+    val trace = parseJPFTrace(path)
+    for (l <- trace.sortedLines()) {
+      result += new ThreadData(l.tid, l.content)
+    }
+
+    result
+  }
 
   def main(args: Array[String]) : Unit = {
     if (args.length  != 1) {
