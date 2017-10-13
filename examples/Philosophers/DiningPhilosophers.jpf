@@ -1,0 +1,11 @@
+target = DiningPhilosophers
+target_args = 
+
+classpath = ./bin
+sourcepath = .
+
+report.console.property_violation = error,trace,output
+
+listener=.listener.EndlessLoopDetector
+
+vm.path_output = true

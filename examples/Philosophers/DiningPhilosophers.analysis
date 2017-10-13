@@ -1,0 +1,215 @@
+JavaPathfinder core system v8.0 (rev 32) - (C) 2005-2014 United States Government. All rights reserved.
+
+
+====================================================== system under test
+DiningPhilosophers.main()
+
+====================================================== search started: 13.10.17 10:45
+
+====================================================== error 1
+gov.nasa.jpf.vm.NotDeadlockedProperty
+deadlock encountered:
+  thread java.lang.Thread:{id:0,name:main,status:WAITING,priority:5,isDaemon:false,lockCount:0,suspendCount:0}
+  thread java.lang.Thread:{id:1,name:Thread-1,status:WAITING,priority:5,isDaemon:false,lockCount:1,suspendCount:0}
+  thread java.lang.Thread:{id:2,name:Thread-2,status:WAITING,priority:5,isDaemon:false,lockCount:1,suspendCount:0}
+  thread java.lang.Thread:{id:3,name:Thread-3,status:WAITING,priority:5,isDaemon:false,lockCount:1,suspendCount:0}
+
+
+====================================================== trace #1
+------------------------------------------------------ transition #0 thread: 0
+gov.nasa.jpf.vm.choice.ThreadChoiceFromSet {id:"ROOT" ,1/1,isCascaded:false}
+      [3157 insn w/o sources]
+  DiningPhilosophers.java:1      : public class DiningPhilosophers {
+      [2 insn w/o sources]
+  DiningPhilosophers.java:1      : public class DiningPhilosophers {
+      [1 insn w/o sources]
+  DiningPhilosophers.java:10     : Fork f1 = new Fork();
+      [1 insn w/o sources]
+  Fork.java:1                    : public class Fork {
+      [2 insn w/o sources]
+  Fork.java:1                    : public class Fork {
+  DiningPhilosophers.java:10     : Fork f1 = new Fork();
+  Fork.java:1                    : public class Fork {
+      [1 insn w/o sources]
+  Fork.java:3                    : private final Object forkLock = new Object();
+      [1 insn w/o sources]
+  Fork.java:3                    : private final Object forkLock = new Object();
+  Fork.java:4                    : private volatile boolean taken = false;
+  DiningPhilosophers.java:10     : Fork f1 = new Fork();
+  DiningPhilosophers.java:11     : Fork f2 = new Fork();
+  Fork.java:1                    : public class Fork {
+      [1 insn w/o sources]
+  Fork.java:3                    : private final Object forkLock = new Object();
+      [1 insn w/o sources]
+  Fork.java:3                    : private final Object forkLock = new Object();
+  Fork.java:4                    : private volatile boolean taken = false;
+  DiningPhilosophers.java:11     : Fork f2 = new Fork();
+  DiningPhilosophers.java:12     : Fork f3 = new Fork();
+  Fork.java:1                    : public class Fork {
+      [1 insn w/o sources]
+  Fork.java:3                    : private final Object forkLock = new Object();
+      [1 insn w/o sources]
+  Fork.java:3                    : private final Object forkLock = new Object();
+  Fork.java:4                    : private volatile boolean taken = false;
+  DiningPhilosophers.java:12     : Fork f3 = new Fork();
+  DiningPhilosophers.java:14     : Philosopher p1 = new Philosopher(f1, f3);
+  Philosopher.java:6             : public Philosopher(Fork leftFork, Fork rightFork) {
+      [1 insn w/o sources]
+  Philosopher.java:7             : this.leftFork = leftFork;
+  Philosopher.java:8             : this.rightFork = rightFork;
+  Philosopher.java:9             : }
+  DiningPhilosophers.java:14     : Philosopher p1 = new Philosopher(f1, f3);
+  DiningPhilosophers.java:15     : Philosopher p2 = new Philosopher(f2, f1);
+  Philosopher.java:6             : public Philosopher(Fork leftFork, Fork rightFork) {
+      [1 insn w/o sources]
+  Philosopher.java:7             : this.leftFork = leftFork;
+  Philosopher.java:8             : this.rightFork = rightFork;
+  Philosopher.java:9             : }
+  DiningPhilosophers.java:15     : Philosopher p2 = new Philosopher(f2, f1);
+  DiningPhilosophers.java:16     : Philosopher p3 = new Philosopher(f3, f2);
+  Philosopher.java:6             : public Philosopher(Fork leftFork, Fork rightFork) {
+      [1 insn w/o sources]
+  Philosopher.java:7             : this.leftFork = leftFork;
+  Philosopher.java:8             : this.rightFork = rightFork;
+  Philosopher.java:9             : }
+  DiningPhilosophers.java:16     : Philosopher p3 = new Philosopher(f3, f2);
+  DiningPhilosophers.java:19     : Thread t1 = new Thread(p1);
+      [145 insn w/o sources]
+  DiningPhilosophers.java:19     : Thread t1 = new Thread(p1);
+  DiningPhilosophers.java:20     : Thread t2 = new Thread(p2);
+      [145 insn w/o sources]
+  DiningPhilosophers.java:20     : Thread t2 = new Thread(p2);
+  DiningPhilosophers.java:21     : Thread t3 = new Thread(p3);
+      [145 insn w/o sources]
+  DiningPhilosophers.java:21     : Thread t3 = new Thread(p3);
+  DiningPhilosophers.java:23     : t1.start();
+      [1 insn w/o sources]
+------------------------------------------------------ transition #1 thread: 0
+gov.nasa.jpf.vm.choice.ThreadChoiceFromSet {id:"START" ,1/2,isCascaded:false}
+      [2 insn w/o sources]
+  DiningPhilosophers.java:24     : t2.start();
+      [1 insn w/o sources]
+------------------------------------------------------ transition #2 thread: 0
+gov.nasa.jpf.vm.choice.ThreadChoiceFromSet {id:"START" ,1/3,isCascaded:false}
+      [2 insn w/o sources]
+  DiningPhilosophers.java:25     : t3.start();
+      [1 insn w/o sources]
+------------------------------------------------------ transition #3 thread: 0
+gov.nasa.jpf.vm.choice.ThreadChoiceFromSet {id:"START" ,1/4,isCascaded:false}
+      [2 insn w/o sources]
+  DiningPhilosophers.java:28     : t1.join();
+      [1 insn w/o sources]
+------------------------------------------------------ transition #4 thread: 1
+gov.nasa.jpf.vm.choice.ThreadChoiceFromSet {id:"JOIN" ,1/3,isCascaded:false}
+      [1 insn w/o sources]
+  Philosopher.java:1             : public class Philosopher implements Runnable {
+  Philosopher.java:12            : eat();
+  Philosopher.java:16            : leftFork.take();
+  Fork.java:8                    : synchronized(forkLock) {
+------------------------------------------------------ transition #5 thread: 1
+gov.nasa.jpf.vm.choice.ThreadChoiceFromSet {id:"LOCK" ,1/3,isCascaded:false}
+  Fork.java:8                    : synchronized(forkLock) {
+  Fork.java:9                    : while(taken) {
+------------------------------------------------------ transition #6 thread: 1
+gov.nasa.jpf.vm.choice.ThreadChoiceFromSet {id:"SHARED_OBJECT" ,1/3,isCascaded:false}
+  Fork.java:9                    : while(taken) {
+  Fork.java:13                   : assert !taken;
+------------------------------------------------------ transition #7 thread: 1
+gov.nasa.jpf.vm.choice.ThreadChoiceFromSet {id:"SHARED_OBJECT" ,1/3,isCascaded:false}
+  Fork.java:13                   : assert !taken;
+  Fork.java:14                   : taken = true;
+------------------------------------------------------ transition #8 thread: 1
+gov.nasa.jpf.vm.choice.ThreadChoiceFromSet {id:"SHARED_OBJECT" ,1/3,isCascaded:false}
+  Fork.java:14                   : taken = true;
+  Fork.java:15                   : }
+  Fork.java:18                   : }
+  Fork.java:19                   : }
+  Philosopher.java:17            : rightFork.take();
+  Fork.java:8                    : synchronized(forkLock) {
+------------------------------------------------------ transition #9 thread: 2
+gov.nasa.jpf.vm.choice.ThreadChoiceFromSet {id:"LOCK" ,2/3,isCascaded:false}
+      [1 insn w/o sources]
+  Philosopher.java:1             : public class Philosopher implements Runnable {
+  Philosopher.java:12            : eat();
+  Philosopher.java:16            : leftFork.take();
+  Fork.java:8                    : synchronized(forkLock) {
+------------------------------------------------------ transition #10 thread: 2
+gov.nasa.jpf.vm.choice.ThreadChoiceFromSet {id:"LOCK" ,2/3,isCascaded:false}
+  Fork.java:8                    : synchronized(forkLock) {
+  Fork.java:9                    : while(taken) {
+------------------------------------------------------ transition #11 thread: 2
+gov.nasa.jpf.vm.choice.ThreadChoiceFromSet {id:"SHARED_OBJECT" ,2/3,isCascaded:false}
+  Fork.java:9                    : while(taken) {
+  Fork.java:13                   : assert !taken;
+------------------------------------------------------ transition #12 thread: 2
+gov.nasa.jpf.vm.choice.ThreadChoiceFromSet {id:"SHARED_OBJECT" ,2/3,isCascaded:false}
+  Fork.java:13                   : assert !taken;
+  Fork.java:14                   : taken = true;
+------------------------------------------------------ transition #13 thread: 2
+gov.nasa.jpf.vm.choice.ThreadChoiceFromSet {id:"SHARED_OBJECT" ,2/3,isCascaded:false}
+  Fork.java:14                   : taken = true;
+  Fork.java:15                   : }
+  Fork.java:18                   : }
+  Fork.java:19                   : }
+  Philosopher.java:17            : rightFork.take();
+  Fork.java:8                    : synchronized(forkLock) {
+------------------------------------------------------ transition #14 thread: 2
+gov.nasa.jpf.vm.choice.ThreadChoiceFromSet {id:"LOCK" ,2/3,isCascaded:false}
+  Fork.java:8                    : synchronized(forkLock) {
+  Fork.java:9                    : while(taken) {
+------------------------------------------------------ transition #15 thread: 2
+gov.nasa.jpf.vm.choice.ThreadChoiceFromSet {id:"SHARED_OBJECT" ,2/3,isCascaded:false}
+  Fork.java:9                    : while(taken) {
+  Fork.java:10                   : forkLock.wait();
+      [1 insn w/o sources]
+------------------------------------------------------ transition #16 thread: 3
+gov.nasa.jpf.vm.choice.ThreadChoiceFromSet {id:"WAIT" ,2/2,isCascaded:false}
+      [1 insn w/o sources]
+  Philosopher.java:1             : public class Philosopher implements Runnable {
+  Philosopher.java:12            : eat();
+  Philosopher.java:16            : leftFork.take();
+  Fork.java:8                    : synchronized(forkLock) {
+------------------------------------------------------ transition #17 thread: 3
+gov.nasa.jpf.vm.choice.ThreadChoiceFromSet {id:"LOCK" ,2/2,isCascaded:false}
+  Fork.java:8                    : synchronized(forkLock) {
+  Fork.java:9                    : while(taken) {
+  Fork.java:13                   : assert !taken;
+  Fork.java:14                   : taken = true;
+  Fork.java:15                   : }
+------------------------------------------------------ transition #18 thread: 1
+gov.nasa.jpf.vm.choice.ThreadChoiceFromSet {id:"RELEASE" ,1/2,isCascaded:false}
+  Fork.java:8                    : synchronized(forkLock) {
+  Fork.java:9                    : while(taken) {
+------------------------------------------------------ transition #19 thread: 1
+gov.nasa.jpf.vm.choice.ThreadChoiceFromSet {id:"SHARED_OBJECT" ,1/2,isCascaded:false}
+  Fork.java:9                    : while(taken) {
+  Fork.java:10                   : forkLock.wait();
+      [1 insn w/o sources]
+------------------------------------------------------ transition #20 thread: 3
+gov.nasa.jpf.vm.choice.ThreadChoiceFromSet {id:"WAIT" ,1/1,isCascaded:false}
+  Fork.java:15                   : }
+  Fork.java:18                   : }
+  Fork.java:19                   : }
+  Philosopher.java:17            : rightFork.take();
+  Fork.java:8                    : synchronized(forkLock) {
+  Fork.java:9                    : while(taken) {
+  Fork.java:10                   : forkLock.wait();
+      [1 insn w/o sources]
+
+====================================================== output #1
+no output
+
+====================================================== results
+error #1: gov.nasa.jpf.vm.NotDeadlockedProperty "deadlock encountered:    thread java.lang.Thread:{..."
+
+====================================================== statistics
+elapsed time:       00:00:01
+states:             new=1636,visited=2318,backtracked=3933,end=4
+search:             maxDepth=53,constraints=0
+choice generators:  thread=1635 (signal=114,lock=513,sharedRef=820,threadApi=53,reschedule=135), data=0
+heap:               new=390,released=101,maxLive=379,gcCycles=3954
+instructions:       34640
+max memory:         109MB
+loaded code:        classes=64,methods=1482
+
+====================================================== search finished: 13.10.17 10:45
