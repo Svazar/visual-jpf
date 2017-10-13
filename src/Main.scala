@@ -1,46 +1,55 @@
+import visual.jpf.parsing.{Trace, TraceLine}
+
 import scala.reflect.io.File
 import scalafx.application.JFXApp
 import scalafx.application.JFXApp.PrimaryStage
-import scalafx.beans.property.{ObjectProperty, ReadOnlyStringWrapper, StringProperty}
+import scalafx.beans.property.{ObjectProperty, ReadOnlyIntegerWrapper, ReadOnlyStringWrapper, StringProperty}
 import scalafx.scene.Scene
 import scalafx.scene.control.{TreeItem, TreeTableColumn, TreeTableView}
 
-case class ThreadData(n: Int, s: StringProperty) {
-  def this(_n: Int, _s: String) = this(_n, StringProperty(_s))
-}
-
-class ControlColumn extends TreeTableColumn[ThreadData, String]("View") {
+class ControlColumn extends TreeTableColumn[TraceLine, String]("View") {
+  sortable = false
   editable = false
   minWidth = 50
   cellValueFactory = { p => ReadOnlyStringWrapper("-")}
 }
 
-class ThreadColumn(val n: Int) extends TreeTableColumn[ThreadData, String]("Thread " + n) {
+class IdColumn extends TreeTableColumn[TraceLine, String]("ID") {
+  sortable = false
+  editable = false
+  minWidth = 50
+  cellValueFactory = { p => ReadOnlyStringWrapper(p.value.value.value.id.toString)}
+}
+
+class ThreadColumn(val tid: Int) extends TreeTableColumn[TraceLine, String]("Thread " + tid) {
+  sortable = false
   editable = false
   minWidth = 100
-  cellValueFactory = { p => ReadOnlyStringWrapper(if (n == p.value.value.value.n) p.value.value.value.s() else "")}
+  cellValueFactory = { p => ReadOnlyStringWrapper(if (tid == p.value.value.value.tid) p.value.value.value.content else "")}
 }
 
 object Main extends JFXApp {
-  val data = CLIMain.example(
-    new java.io.File(".").getCanonicalPath +
-    "/examples/Philosophers/DiningPhilosophers.analysis")
+  val trace = CLIMain.parseJPFTrace(new java.io.File(".").getCanonicalPath +
+    "/examples/Philosophers/DiningPhilosophers.analysis").sortedLines()
 
-  def group(data: Seq[ThreadData]): Seq[Seq[ThreadData]] = {
-    if (data.isEmpty) Seq()
+  def numberOfThreads(trace: Traversable[TraceLine]): Int =
+    trace.map(_.tid).max + 1
+
+  def group(trace: Traversable[TraceLine]): Seq[Seq[TraceLine]] = {
+    if (trace.isEmpty) Seq()
     else {
-      val (h, t) = data.span(_.n == data.head.n)
-      h +: group(t)
+      val (h, t) = trace.span(_.tid == trace.head.tid)
+      h.toSeq +: group(t)
     }
   }
 
-  val rootnode = new TreeItem(new ThreadData(0, "all")) {
+  val rootnode: TreeItem[TraceLine] = new TreeItem(new TraceLine(0, -1, "", "")) {
     expanded = true
-//    children = data.map(new TreeItem(_))
-    children = group(data).map(g => {
+    children = group(trace).map(g => {
       val n = new TreeItem(g.head) {
-        if (!g.tail.isEmpty) {
+        if (g.tail.nonEmpty) {
           children = g.tail.map(new TreeItem(_))
+          expanded = true
         }
       }
       n
@@ -50,13 +59,10 @@ object Main extends JFXApp {
   stage = new PrimaryStage {
     title = "Visual JPF"
     scene = new Scene(1024, 768) {
-      root = new TreeTableView[ThreadData](rootnode) {
-        columns ++= Seq(
-          new ControlColumn,
-          new ThreadColumn(0),
-          new ThreadColumn(1),
-          new ThreadColumn(2)
-        )
+      root = new TreeTableView[TraceLine](rootnode) {
+        columns += new ControlColumn
+        columns += new IdColumn
+        (0 to numberOfThreads(trace) - 1).foreach{ columns += new ThreadColumn(_) }
       }
     }
   }
