@@ -1,14 +1,14 @@
 import visual.jpf.filters.Filters
-import visual.jpf.parsing.{Trace, TraceLine}
-import visual.jpf.parsing.{Parser, Trace}
+import visual.jpf.parsing.{Parser, Trace, TraceLine}
 
 import scala.io.Source
-import scala.reflect.io.File
 import scalafx.application.JFXApp
 import scalafx.application.JFXApp.PrimaryStage
-import scalafx.beans.property.{ObjectProperty, ReadOnlyIntegerWrapper, ReadOnlyStringWrapper, StringProperty}
+import scalafx.beans.property.ReadOnlyStringWrapper
+import scalafx.geometry.Insets
 import scalafx.scene.Scene
-import scalafx.scene.control.{TreeItem, TreeTableColumn, TreeTableView}
+import scalafx.scene.control._
+import scalafx.scene.layout.{BorderPane, HBox, VBox}
 
 class ControlColumn extends TreeTableColumn[TraceLine, String]("View") {
   sortable = false
@@ -80,7 +80,7 @@ object Main extends JFXApp {
     }
   }
 
-  val rootnode: TreeItem[TraceLine] = new TreeItem(new TraceLine(0, -1, "", "")) {
+  val rootnode: TreeItem[TraceLine] = new TreeItem(TraceLine(0, -1, "", "")) {
     expanded = true
     children = group(trace).map(g => {
       val n = new TreeItem(g.head) {
@@ -96,10 +96,18 @@ object Main extends JFXApp {
   stage = new PrimaryStage {
     title = "Visual JPF"
     scene = new Scene(1024, 768) {
-      root = new TreeTableView[TraceLine](rootnode) {
-        columns += new ControlColumn
-        columns += new IdColumn
-        (0 to numberOfThreads(trace) - 1).foreach{ columns += new ThreadColumn(_) }
+      root = new BorderPane {
+        center =
+          new TreeTableView[TraceLine](rootnode) {
+            columns += new ControlColumn
+            columns += new IdColumn
+            (0 until numberOfThreads(trace)).foreach { columns += new ThreadColumn(_) }
+          }
+        bottom =
+          new HBox {
+            padding = Insets(10)
+            children = Seq(new Label("Foo"), new Button("Bar"))
+          }
       }
     }
   }
