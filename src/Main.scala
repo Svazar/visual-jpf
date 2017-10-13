@@ -3,16 +3,16 @@ import javafx.collections.ListChangeListener
 import visual.jpf.filters.Filters
 import visual.jpf.parsing.{Parser, Trace, TraceLine}
 
+
 import scala.collection.mutable
 import scala.io.Source
+import scalafx.Includes._
 import scalafx.application.JFXApp
 import scalafx.application.JFXApp.PrimaryStage
 import scalafx.beans.property.{ReadOnlyStringWrapper, StringProperty}
 import scalafx.beans.property.ReadOnlyStringWrapper
-import javafx.event.EventHandler
-import javafx.event.ActionEvent
-import javafx.scene.control
 
+import scalafx.event.ActionEvent
 import scalafx.geometry.Insets
 import scalafx.scene.Scene
 import scalafx.scene.control._
@@ -38,15 +38,18 @@ class ThreadColumn(val tid: Int) extends TreeTableColumn[TraceLine, String]("Thr
   editable = false
   minWidth = 100
   cellValueFactory = { p => ReadOnlyStringWrapper(if (tid == p.value.value.value.tid) p.value.value.value.content else "") }
+  contextMenu =
+    new ContextMenu(
+//      new MenuItem("Collapse") { onAction = {ae: ActionEvent => {println(ae)} } },
+      new MenuItem("Expand"))
 }
 
-class NotesColumn extends TreeTableColumn[TraceLine, String]("Notes") {
-  val notes: mutable.Map[Int, StringProperty] = mutable.Map()
+class NotesColumn(val notes: mutable.Map[Int, StringProperty]) extends TreeTableColumn[TraceLine, String]("Notes") {
   sortable = false
   editable = true
   minWidth = 200
-  cellValueFactory = { p => notes.getOrElse(p.value.value.value.id, new StringProperty("foo") {onChange((a,b,c) => notes += p.value.value.value.id -> this )}) }
-  cellFactory = (c: TreeTableColumn[TraceLine, String]) => new TextFieldTreeTableCell[TraceLine, String](scalafx.scene.control.TextFormatter.IdentityStringConverter) { editable = true }
+  cellValueFactory = { p => notes.getOrElse(p.value.value.value.id, new StringProperty("") {onChange((_, _, _) => notes += p.value.value.value.id -> this )}) }
+  cellFactory = { c => new TextFieldTreeTableCell[TraceLine, String](scalafx.scene.control.TextFormatter.IdentityStringConverter) { editable = true } }
 }
 
 
@@ -112,6 +115,8 @@ object Main extends JFXApp {
     })
   }
 
+  val notes: mutable.Map[Int, StringProperty] = mutable.Map()
+
   val txt = new TextArea()
 
   stage = new PrimaryStage {
@@ -124,9 +129,19 @@ object Main extends JFXApp {
             columns += new ControlColumn
             columns += new IdColumn
             (0 until numberOfThreads(traceLines)).foreach { columns += new ThreadColumn(_) }
-            columns += new NotesColumn
+            columns += new NotesColumn(notes)
           }
 
+        new TableSelectionModel(table.selectionModel()) {
+          selectedItem.onChange((_,_, newValue) => {
+            val tid = newValue.value.value.tid
+            println(tid)
+            val specific = filteredTrace.linesOfThread(tid)
+
+          })
+        }
+
+/*
         table.selectionModel().getSelectedCells.addListener(new ListChangeListener[control.TreeTablePosition[TraceLine, _]] {
           override def onChanged(chgs: ListChangeListener.Change[_ <: control.TreeTablePosition[TraceLine, _]]): Unit = {
             while (chgs.next()) {
@@ -159,7 +174,7 @@ object Main extends JFXApp {
             }
           }
         })
-
+*/
         center = table
 
         bottom =
@@ -169,15 +184,12 @@ object Main extends JFXApp {
             children.add(txt)
 
             (0 until numberOfThreads(traceLines)).foreach { t =>
-              val btn = new Button("Thread-" + t)
-
-              btn.onAction = new EventHandler[ActionEvent] {
-                override def handle(event: ActionEvent) {
+              val btn = new Button("Thread-" + t) {
+                onAction = (event: ActionEvent) => {
                   txt.setText(trace
                     .linesOfThread(t)
                     .sortedLines
                     .map(_.content) mkString "\n")
-
                 }
               }
 
@@ -187,5 +199,8 @@ object Main extends JFXApp {
           }
       }
     }
+  }
+  override def stopApp(): Unit = {
+    notes foreach println
   }
 }
