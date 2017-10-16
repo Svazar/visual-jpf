@@ -30,6 +30,11 @@ class IdColumn extends TreeTableColumn[TraceLine, String]("ID") {
   editable = false
   minWidth = 50
   cellValueFactory = { p => ReadOnlyStringWrapper(p.value.value.value.id.toString) }
+  cellFactory = { _ =>
+    new TextFieldTreeTableCell[TraceLine, String](scalafx.scene.control.TextFormatter.IdentityStringConverter) {
+      font = GUIParameters.ID_FONT
+    }
+  }
 }
 
 class ThreadColumn(val tid: Int, val preferredWidth: Double) extends TreeTableColumn[TraceLine, String]("Thread " + tid) {
@@ -38,6 +43,12 @@ class ThreadColumn(val tid: Int, val preferredWidth: Double) extends TreeTableCo
   minWidth = 100
   prefWidth = preferredWidth
   cellValueFactory = { p => ReadOnlyStringWrapper(if (tid == p.value.value.value.tid) p.value.value.value.content else "") }
+
+  cellFactory = { _ =>
+    new TextFieldTreeTableCell[TraceLine, String](scalafx.scene.control.TextFormatter.IdentityStringConverter) {
+      font = GUIParameters.THREAD_CONTENT_FONT
+    }
+  }
 
   // Click an header must collapse/restore thread columns.
   // To implement this, we remove the default header text, create a new VBox with a Label,
@@ -76,11 +87,6 @@ class NotesColumn(val notes: mutable.Map[Int, StringProperty]) extends TreeTable
   sortable = false
   editable = true
   minWidth = 200
-  cellValueFactory = { p =>
-    notes.getOrElse(p.value.value.value.id, new StringProperty("") {
-      onChange((_, _, _) => notes += p.value.value.value.id -> this)
-    })
-  }
 
   cellValueFactory = { p =>
     notes.getOrElse(p.value.value.value.id, new StringProperty("") {
@@ -99,6 +105,10 @@ object GUIParameters {
   val SCENE_WIDTH = 1024
   val SCENE_HEIGHT = 768
   val BOTTOM_SIZE = 15
+
+  val ID_FONT: Font = Font.font("Consolas", 14)
+  val THREAD_CONTENT_FONT: Font = Font.font("Consolas", 14)
+  val THREAD_LOCAL_AREA_FONT: Font = Font.font("Consolas", 14)
 }
 
 object Main extends JFXApp {
@@ -142,7 +152,7 @@ object Main extends JFXApp {
 
   val txt = new TextArea() {
     minWidth = GUIParameters.SCENE_WIDTH * 0.7
-    font = Font.font("Consolas", 12)
+    font = GUIParameters.THREAD_LOCAL_AREA_FONT
   }
 
   val obs = ObservableBuffer(availableFilters.list.map(_.name))

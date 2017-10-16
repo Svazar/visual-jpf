@@ -10,13 +10,6 @@ class Trace(private val lines: Map[Int, TraceLine]) {
 
   def line(id: Int): Option[TraceLine] = lines.get(id)
 
-  def id(line: TraceLine): Int = {
-    for ((id, sline) <- lines if line == sline) {
-      return id
-    }
-    -1
-  }
-
   def linesOfThread(tid: Int): Trace = this.withFilters(new Filter {
     override def name: String = ???
     override def ignoreLine(t: TraceLine): Boolean = t.tid != tid
