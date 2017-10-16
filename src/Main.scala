@@ -1,3 +1,5 @@
+import java.io.File
+
 import visual.jpf.filters.{Filter, Filters}
 import visual.jpf.parsing.{Parser, Trace, TraceLine}
 
@@ -15,6 +17,7 @@ import scalafx.scene.control.cell.TextFieldTreeTableCell
 import scalafx.scene.input.{MouseButton, MouseEvent}
 import scalafx.scene.layout.{BorderPane, HBox, VBox}
 import scalafx.scene.text.Font
+import scalafx.stage.FileChooser
 
 class ControlColumn extends TreeTableColumn[TraceLine, String]("View") {
   sortable = false
@@ -98,11 +101,11 @@ object ParseHelper {
   val tracePrefix = "====================================================== trace"
   val outputPrefix = "====================================================== output"
 
-  def parseJPFTrace(path: String): Trace = {
+  def parseJPFTrace(traceFile: File): Trace = {
     val buffer = collection.mutable.ArrayBuffer[String]()
     var buffering = false
 
-    for (line <- Source.fromFile(path).getLines) {
+    for (line <- Source.fromFile(traceFile).getLines) {
       if (line.startsWith(tracePrefix)) {
         buffering = true
       } else if (buffering) {
@@ -178,20 +181,33 @@ object AvailableFilters {
 }
 
 object Main extends JFXApp {
-
-  var availableFilters = AvailableFilters.default
-
-  if (parameters.raw.length == 2) {
-    // <filepath> <filters_path>
-    availableFilters = availableFilters.merge(AvailableFilters(parameters.raw(1)))
-  } else if (parameters.raw.length != 1) {
-    // filters_path -- empty
-    println("Usage: tool <filepath> <filters_path>")
-    println("       tool <filepath>")
-    System.exit(-1)
+  stage = new PrimaryStage {
+    title = "Visual JPF"
   }
 
-  val trace = ParseHelper.parseJPFTrace(parameters.raw.head)
+  val (traceFile: File, availableFilters: AvailableFilters) =
+    if (parameters.raw.length > 2) {
+      println("Usage: tool <filepath> <filters_path>")
+      println("       tool <filepath>")
+      println("       tool")
+      System.exit(-1)
+    } else if (parameters.raw.isEmpty) {
+      val fc = new FileChooser() {
+        title = "Select JPF trace file"
+        initialDirectory = new File(System.getProperty("user.dir"))
+      }
+      val f = fc.showOpenDialog(stage)
+      if (f == null) { System.exit(1) }
+      (f, AvailableFilters.default)
+    } else {
+      (new File(parameters.raw.head),
+        if (parameters.raw.length == 2) {
+          AvailableFilters.default.merge(AvailableFilters(parameters.raw(1)))
+        } else AvailableFilters.default
+      )
+    }
+
+  val trace = ParseHelper.parseJPFTrace(traceFile)
   val numberOfThreads = trace.sortedLines.map(_.tid).toSet.size
   var filteredTrace = trace.withFilters(availableFilters.list: _*)
 
@@ -246,71 +262,69 @@ object Main extends JFXApp {
     })
   }
 
-  stage = new PrimaryStage {
-    title = "Visual JPF"
-    scene = new Scene(GUIParameters.SCENE_WIDTH, GUIParameters.SCENE_HEIGHT) {
-      root = new BorderPane {
-        val table =
-          new TreeTableView[TraceLine](rootnode) {
-            editable = true
-            columns += new ControlColumn
-            columns += new IdColumn
-            (0 until numberOfThreads).foreach {
-              columns += new ThreadColumn(_, GUIParameters.SCENE_WIDTH / (numberOfThreads + 1))
-            }
-            columns += new NotesColumn(notes)
+
+  stage.scene = new Scene(GUIParameters.SCENE_WIDTH, GUIParameters.SCENE_HEIGHT) {
+    root = new BorderPane {
+      val table =
+        new TreeTableView[TraceLine](rootnode) {
+          editable = true
+          columns += new ControlColumn
+          columns += new IdColumn
+          (0 until numberOfThreads).foreach {
+            columns += new ThreadColumn(_, GUIParameters.SCENE_WIDTH / (numberOfThreads + 1))
           }
-
-        new TableSelectionModel(table.selectionModel()) {
-          selectedItem.onChange((_, _, newValue) => {
-            if (newValue != null && newValue.getValue != null) {
-              val currentSelectedLine = newValue.value.value
-              val threadSpecificTrace = filteredTrace.linesOfThread(currentSelectedLine.tid)
-
-              // TODO refactor this hell
-              var plus = true
-              var anchorId = 0
-              var text = ""
-
-              val maxClassLength = (threadSpecificTrace.sortedLines.map(_.className.length) ++ Seq(0)).max
-
-              def wrapSelected(l: TraceLine) = wrap(l, "-->", "<--")
-
-              def wrapNonSelected(l: TraceLine) = wrap(l, "   ", "   ")
-
-              def wrap(l: TraceLine, prefix: String, postfix: String) = {
-                prefix + l.className.padTo(maxClassLength + 1, ' ').mkString("") + ": " + l.content + postfix + "\n"
-              }
-
-              for (l <- threadSpecificTrace.sortedLines) {
-                if (l == currentSelectedLine) {
-                  plus = false
-                }
-
-                val addition = if (l == currentSelectedLine) wrapSelected(l) else wrapNonSelected(l)
-                text = text + addition
-
-                if (plus) {
-                  anchorId += addition.length
-                }
-              }
-
-              txt.setText(text)
-              txt.selectRange(anchorId, anchorId + wrapSelected(currentSelectedLine).length)
-            }
-          })
+          columns += new NotesColumn(notes)
         }
 
-        center = table
+      new TableSelectionModel(table.selectionModel()) {
+        selectedItem.onChange((_, _, newValue) => {
+          if (newValue != null && newValue.getValue != null) {
+            val currentSelectedLine = newValue.value.value
+            val threadSpecificTrace = filteredTrace.linesOfThread(currentSelectedLine.tid)
 
-        bottom =
-          new HBox {
-            padding = Insets(GUIParameters.BOTTOM_SIZE)
+            // TODO refactor this hell
+            var plus = true
+            var anchorId = 0
+            var text = ""
 
-            children.add(txt)
-            children.add(appliedFiltersView)
+            val maxClassLength = (threadSpecificTrace.sortedLines.map(_.className.length) ++ Seq(0)).max
+
+            def wrapSelected(l: TraceLine) = wrap(l, "-->", "<--")
+
+            def wrapNonSelected(l: TraceLine) = wrap(l, "   ", "   ")
+
+            def wrap(l: TraceLine, prefix: String, postfix: String) = {
+              prefix + l.className.padTo(maxClassLength + 1, ' ').mkString("") + ": " + l.content + postfix + "\n"
+            }
+
+            for (l <- threadSpecificTrace.sortedLines) {
+              if (l == currentSelectedLine) {
+                plus = false
+              }
+
+              val addition = if (l == currentSelectedLine) wrapSelected(l) else wrapNonSelected(l)
+              text = text + addition
+
+              if (plus) {
+                anchorId += addition.length
+              }
+            }
+
+            txt.setText(text)
+            txt.selectRange(anchorId, anchorId + wrapSelected(currentSelectedLine).length)
           }
+        })
       }
+
+      center = table
+
+      bottom =
+        new HBox {
+          padding = Insets(GUIParameters.BOTTOM_SIZE)
+
+          children.add(txt)
+          children.add(appliedFiltersView)
+        }
     }
   }
 
