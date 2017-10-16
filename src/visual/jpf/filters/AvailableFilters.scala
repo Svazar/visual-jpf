@@ -10,7 +10,7 @@ object AvailableFilters {
   val empty = new AvailableFilters(Seq.empty)
   val default = new AvailableFilters(Seq(Filters.ignoreContentStartsWith("Ignore closed bracket", "}")))
 
-  private def parseFilters(path: String) = {
+  private def parseFilters(path: String): Seq[Filter] = {
     val currentBlock = mutable.ArrayBuffer[String]()
     val filters = mutable.ArrayBuffer[Filter]()
 
@@ -37,15 +37,19 @@ object AvailableFilters {
       }
     }
 
-    for (rawLine <- Source.fromFile(path).getLines if rawLine.nonEmpty) {
-      val line = rawLine.trim
-      if (line.startsWith("Name")) {
-        processBlock()
+    try {
+      for (rawLine <- Source.fromFile(path).getLines if rawLine.nonEmpty) {
+        val line = rawLine.trim
+        if (line.startsWith("Name")) {
+          processBlock()
+        }
+        currentBlock += line
       }
-      currentBlock += line
-    }
 
-    processBlock()
+      processBlock()
+    } catch {
+      case _: Exception => return Seq.empty
+    }
 
     filters
   }

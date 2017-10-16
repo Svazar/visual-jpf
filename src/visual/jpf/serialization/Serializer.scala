@@ -4,18 +4,16 @@ import java.io._
 
 import visual.jpf.parsing.TraceLine
 
-import scala.collection.mutable
-
 @SerialVersionUID(1L)
 class SerializedTraceLine(var id: Int, var tid: Int, var className: String, var content: String, var comment: String)
   extends Serializable {
 }
 
-case class SerializedTrace(trace: Traversable[TraceLine], notes: mutable.Map[Int, String])
+case class SerializedTrace(trace: Traversable[TraceLine], notes: Map[Int, String])
 
 object Serializer {
 
-  def save(path: String, trace: SerializedTrace): Unit = {
+  def save(path: File, trace: SerializedTrace): Unit = {
     val oos = new ObjectOutputStream(new FileOutputStream(path))
     try {
       for (line <- trace.trace) {
@@ -31,7 +29,7 @@ object Serializer {
     }
   }
 
-  def load(path: String): SerializedTrace = {
+  def load(path: File): SerializedTrace = {
     val traceLines = collection.mutable.ArrayBuffer[TraceLine]()
     val notes = collection.mutable.Map[Int, String]()
     val ois = new ObjectInputStream(new FileInputStream(path))
@@ -48,6 +46,6 @@ object Serializer {
       ois.close()
     }
 
-    SerializedTrace(traceLines, notes)
+    SerializedTrace(traceLines, notes.toMap)
   }
 }

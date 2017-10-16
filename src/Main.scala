@@ -1,6 +1,7 @@
 import java.io.File
+
 import visual.jpf.filters.{AvailableFilters, Filter}
-import visual.jpf.parsing.{ParseHelper, TraceLine}
+import visual.jpf.parsing.{ParseHelper, Trace, TraceLine}
 import visual.jpf.serialization.{SerializedTrace, Serializer}
 
 import scala.collection.mutable
@@ -116,29 +117,43 @@ object Main extends JFXApp {
     title = "Visual JPF"
   }
 
-  val (traceFile: File, availableFilters: AvailableFilters) =
-    if (parameters.raw.length > 2) {
-      println("Usage: tool <filepath> <filters_path>")
-      println("       tool <filepath>")
-      println("       tool")
-      System.exit(-1)
-    } else if (parameters.raw.isEmpty) {
+  val initialDirectory = new File(System.getProperty("user.dir"))
+
+  val availableFilters = AvailableFilters.default
+    .merge(AvailableFilters(initialDirectory + "/filters.ini"))
+
+  val traceFile: File = parameters.raw.toList match {
+    case path :: Nil => new File(path)
+
+    case Nil =>
       val fc = new FileChooser() {
         title = "Select JPF trace file"
         initialDirectory = new File(System.getProperty("user.dir"))
       }
       val f = fc.showOpenDialog(stage)
-      if (f == null) { System.exit(1) }
-      (f, AvailableFilters.default)
-    } else {
-      (new File(parameters.raw.head),
-        if (parameters.raw.length == 2) {
-          AvailableFilters.default.merge(AvailableFilters(parameters.raw(1)))
-        } else AvailableFilters.default
-      )
-    }
+      if (f == null) {
+        System.exit(1)
+      }
+      f
 
-  val trace = ParseHelper.parseJPFTrace(traceFile)
+    case _ =>
+      println(
+        """
+          |Usage:
+          |  tool <filepath>
+          |  tool
+        """.stripMargin
+      )
+      System.exit(-1)
+      null
+  }
+
+  val sTrace = parseSerialTrace(traceFile)
+    .orElse(parsePlainTrace(traceFile))
+    .get
+
+
+  val trace = Trace(sTrace.trace)
   val numberOfThreads = trace.sortedLines.map(_.tid).toSet.size
   var filteredTrace = trace.withFilters(availableFilters.list: _*)
 
@@ -149,6 +164,7 @@ object Main extends JFXApp {
   updateView(availableFilters.list: _*)
 
   val notes: mutable.Map[Int, StringProperty] = mutable.Map()
+  sTrace.notes.foreach(e => notes.put(e._1, new StringProperty(e._2)))
 
   val txt = new TextArea() {
     minWidth = GUIParameters.SCENE_WIDTH * 0.7
@@ -237,6 +253,19 @@ object Main extends JFXApp {
     }
   }
 
+  def parseSerialTrace(path: File): Option[SerializedTrace] = {
+    try {
+      Some(Serializer.load(path))
+    } catch {
+      case e: Exception => None
+    }
+  }
+
+  def parsePlainTrace(path: File): Option[SerializedTrace] = Some(
+    SerializedTrace(
+      ParseHelper.parseJPFTrace(path).sortedLines,
+      Map.empty))
+
   def group(trace: Traversable[TraceLine]): Seq[Seq[TraceLine]] = {
     if (trace.nonEmpty) {
       val (h, t) = trace.span(_.tid == trace.head.tid)
@@ -261,10 +290,15 @@ object Main extends JFXApp {
   }
 
   override def stopApp(): Unit = {
-    // TODO: user-defined location
-    Serializer.save("tmp", SerializedTrace(trace.sortedLines, notes.map(e => (e._1, e._2.value))))
-    // val t = Serializer.load("tmp")
-    // println(t)
-    //notes foreach println
+    val fc = new FileChooser() {
+      title = "Select save file"
+      initialDirectory = new File(System.getProperty("user.dir"))
+    }
+    val f = fc.showOpenDialog(stage)
+    if (f != null) {
+      Serializer.save(f, SerializedTrace(
+        trace.sortedLines,
+        notes.map(e => (e._1, e._2.value)).toMap))
+    }
   }
 }

@@ -27,8 +27,9 @@ class Trace(private val lines: Map[Int, TraceLine]) {
 
 object Trace {
   def apply(lines: Map[Int, TraceLine]): Trace = new Trace(lines)
+  def apply(lines: Traversable[TraceLine]): Trace = new Trace(lines.map(l => (l.id, l)).toMap)
 
-  val empty = Trace(Map.empty)
+  val empty = Trace(Map[Int, TraceLine]())
 }
 
 
