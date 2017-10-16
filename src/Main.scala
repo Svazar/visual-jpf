@@ -1,5 +1,6 @@
 import visual.jpf.filters.{AvailableFilters, Filter}
 import visual.jpf.parsing.{ParseHelper, TraceLine}
+import visual.jpf.serialization.{SerializedTrace, Serializer}
 
 import scala.collection.mutable
 import scalafx.Includes._
@@ -237,6 +238,10 @@ object Main extends JFXApp {
   }
 
   override def stopApp(): Unit = {
-    notes foreach println
+    // TODO: user-defined location
+    Serializer.save("tmp", SerializedTrace(trace.sortedLines, notes.map(e => (e._1, e._2.value))))
+    // val t = Serializer.load("tmp")
+    // println(t)
+    //notes foreach println
   }
 }
