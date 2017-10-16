@@ -2,7 +2,6 @@ package visual.jpf.filters
 
 import visual.jpf.parsing.TraceLine
 
-
 trait Filter {
   def name : String
   def ignoreLine(t: TraceLine) : Boolean
