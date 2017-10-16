@@ -1,4 +1,6 @@
 import java.io.File
+import javafx.event.EventHandler
+import javafx.scene.input.DragEvent
 
 import visual.jpf.filters.{AvailableFilters, Filter}
 import visual.jpf.parsing.{ParseHelper, Trace, TraceLine}
@@ -10,12 +12,12 @@ import scalafx.application.JFXApp
 import scalafx.application.JFXApp.PrimaryStage
 import scalafx.beans.property.{ReadOnlyStringWrapper, StringProperty}
 import scalafx.collections.ObservableBuffer
-import scalafx.geometry.{Insets, Pos}
+import scalafx.geometry.{Insets, Orientation, Pos}
 import scalafx.scene.Scene
 import scalafx.scene.control._
 import scalafx.scene.control.cell.TextFieldTreeTableCell
 import scalafx.scene.input.{MouseButton, MouseEvent}
-import scalafx.scene.layout.{BorderPane, HBox, VBox}
+import scalafx.scene.layout.{BorderPane, HBox, Priority, VBox}
 import scalafx.scene.text.Font
 import scalafx.stage.FileChooser
 
@@ -169,6 +171,7 @@ object Main extends JFXApp {
   val txt = new TextArea() {
     minWidth = GUIParameters.SCENE_WIDTH * 0.7
     font = GUIParameters.THREAD_LOCAL_AREA_FONT
+    hgrow = Priority.Always
   }
 
   val obs = ObservableBuffer(availableFilters.list.map(_.name))
@@ -189,7 +192,7 @@ object Main extends JFXApp {
 
 
   stage.scene = new Scene(GUIParameters.SCENE_WIDTH, GUIParameters.SCENE_HEIGHT) {
-    root = new BorderPane {
+    root = new SplitPane {
       val table =
         new TreeTableView[TraceLine](rootnode) {
           editable = true
@@ -241,15 +244,17 @@ object Main extends JFXApp {
         })
       }
 
-      center = table
-
-      bottom =
+      val bottom =
         new HBox {
           padding = Insets(GUIParameters.BOTTOM_SIZE)
-
           children.add(txt)
           children.add(appliedFiltersView)
+
         }
+
+      orientation = Orientation.Vertical
+      dividerPositions_= (0.7)
+      items ++= Seq(table, bottom)
     }
   }
 
